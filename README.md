@@ -1,0 +1,86 @@
+# kafka-consumer-VideoConverter
+The server is prepared to listen to topic on bitnami/kafka container and after receiving the video, converts it from MP4 format to AVI. Then it sends it back to kafka server on another topic.
+
+You can try it out by running docker-compose:
+The images of producer and consumer are here: https://hub.docker.com/u/krokiet97
+
+=========================================================================================================
+version: '2'
+
+networks:
+  kafka-net:
+    driver: bridge
+
+services:
+  producer-kafka:
+    networks:
+      - kafka-net
+    image: krokiet97/producer-kafka
+    hostname: producer-kafka
+    container_name: producer-kafka
+    environment:
+      PRODUCER_BOOTSTRAP_SERVERS: 'kafka:29092'
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+    ports:
+      - "8081:8081"
+    restart: "no"
+    depends_on:
+      - kafka
+  consumer-kafka:
+    networks:
+      - kafka-net
+    image: krokiet97/consumer-kafka
+    hostname: consumer-kafka
+    container_name: consumer-kafka
+    environment:
+      PRODUCER_BOOTSTRAP_SERVERS: 'kafka:29092'
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+    ports:
+      - "8082:8082"
+    restart: "no"
+    depends_on:
+      - kafka
+  zookeeper:
+    networks:
+      - kafka-net
+    image: bitnami/zookeeper
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ALLOW_ANONYMOUS_LOGIN: yes
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+  kafka:
+    networks:
+      - kafka-net
+    image: bitnami/kafka
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_HOST_NAME: kafka
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:29092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092
+      ALLOW_PLAINTEXT_LISTENER: yes
+      KAFKA_ENABLE_KRAFT: no
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_MESSAGE_MAX_BYTES: 1000000000
+      KAFKA_SOCKET_REQUEST_MAX_BYTES: 1000000000
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+
+volumes:
+  zookeeper_data:
+    driver: local
+  kafka_data:
+    driver: local
